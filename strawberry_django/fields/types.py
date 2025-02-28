@@ -344,6 +344,21 @@ else:
         description="A geographical object that contains multiple polygons.",
     )
 
+    import json
+    import strawberry_django.fields.field
+
+    @strawberry.type(description="A geographical object that contains multiple polygons.")
+    class GeometryType:
+        geojson: JSON = strawberry_django.fields.field.field(resolver=lambda v: json.loads(v))
+        geom_type: str
+        dims: int
+        wkt : str
+        ewkt: str
+
+    @strawberry.type
+    class PolygonType(GeometryType):
+        pass
+
     field_type_map.update(
         {
             geos_fields.PointField: Point,
@@ -352,6 +367,7 @@ else:
             geos_fields.MultiPointField: MultiPoint,
             geos_fields.MultiLineStringField: MultiLineString,
             geos_fields.MultiPolygonField: MultiPolygon,
+            geos_fields.GeometryField: GeometryType,
         },
     )
 

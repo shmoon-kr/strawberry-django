@@ -26,7 +26,7 @@ from strawberry.scalars import JSON
 from strawberry.types.enum import EnumValueDefinition
 from strawberry.utils.str_converters import capitalize_first, to_camel_case
 
-from strawberry_django import filters
+from strawberry_django import filters, GeometryFilterLookup
 from strawberry_django.fields import filter_types
 from strawberry_django.settings import strawberry_django_settings as django_settings
 
@@ -269,6 +269,60 @@ field_type_map: dict[
     reverse_related.OneToOneRel: DjangoModelType,
 }
 
+input_field_type_map: dict[
+    Union[
+        type[fields.Field],
+        type[related.RelatedField],
+        type[reverse_related.ForeignObjectRel],
+    ],
+    type,
+] = {
+    files.FileField: Upload,
+    files.ImageField: Upload,
+    related.ForeignKey: OneToManyInput,
+    related.ManyToManyField: ManyToManyInput,
+    related.OneToOneField: OneToOneInput,
+    reverse_related.ManyToManyRel: ManyToManyInput,
+    reverse_related.ManyToOneRel: ManyToOneInput,
+    reverse_related.OneToOneRel: OneToOneInput,
+}
+
+
+relay_field_type_map: dict[
+    Union[
+        type[fields.Field],
+        type[related.RelatedField],
+        type[reverse_related.ForeignObjectRel],
+    ],
+    type,
+] = {
+    fields.AutoField: relay.GlobalID,
+    fields.BigAutoField: relay.GlobalID,
+    related.ForeignKey: relay.Node,
+    related.ManyToManyField: list[relay.Node],
+    related.OneToOneField: relay.Node,
+    reverse_related.ManyToManyRel: list[relay.Node],
+    reverse_related.ManyToOneRel: list[relay.Node],
+    reverse_related.OneToOneRel: relay.Node,
+}
+
+
+relay_input_field_type_map: dict[
+    Union[
+        type[fields.Field],
+        type[related.RelatedField],
+        type[reverse_related.ForeignObjectRel],
+    ],
+    type,
+] = {
+    related.ForeignKey: NodeInput,
+    related.ManyToManyField: ListInput[NodeInput],
+    related.OneToOneField: NodeInput,
+    reverse_related.ManyToManyRel: ListInput[NodeInput],
+    reverse_related.ManyToOneRel: ListInput[NodeInput],
+    reverse_related.OneToOneRel: NodeInput,
+}
+
 try:
     from django.contrib.gis import geos
     from django.contrib.gis.db import models as geos_fields
@@ -344,14 +398,12 @@ else:
         description="A geographical object that contains multiple polygons.",
     )
 
-    import json
-    import strawberry_django.fields.field
-
     @strawberry.type(description="A geographical object that contains multiple polygons.")
     class GeometryType:
-        geojson: JSON = strawberry_django.fields.field.field(resolver=lambda v: json.loads(v))
+        geojson: JSON = strawberry.field()
         geom_type: str
         dims: int
+        srid: int
         wkt : str
         ewkt: str
 
@@ -371,60 +423,11 @@ else:
         },
     )
 
-
-input_field_type_map: dict[
-    Union[
-        type[fields.Field],
-        type[related.RelatedField],
-        type[reverse_related.ForeignObjectRel],
-    ],
-    type,
-] = {
-    files.FileField: Upload,
-    files.ImageField: Upload,
-    related.ForeignKey: OneToManyInput,
-    related.ManyToManyField: ManyToManyInput,
-    related.OneToOneField: OneToOneInput,
-    reverse_related.ManyToManyRel: ManyToManyInput,
-    reverse_related.ManyToOneRel: ManyToOneInput,
-    reverse_related.OneToOneRel: OneToOneInput,
-}
-
-
-relay_field_type_map: dict[
-    Union[
-        type[fields.Field],
-        type[related.RelatedField],
-        type[reverse_related.ForeignObjectRel],
-    ],
-    type,
-] = {
-    fields.AutoField: relay.GlobalID,
-    fields.BigAutoField: relay.GlobalID,
-    related.ForeignKey: relay.Node,
-    related.ManyToManyField: list[relay.Node],
-    related.OneToOneField: relay.Node,
-    reverse_related.ManyToManyRel: list[relay.Node],
-    reverse_related.ManyToOneRel: list[relay.Node],
-    reverse_related.OneToOneRel: relay.Node,
-}
-
-
-relay_input_field_type_map: dict[
-    Union[
-        type[fields.Field],
-        type[related.RelatedField],
-        type[reverse_related.ForeignObjectRel],
-    ],
-    type,
-] = {
-    related.ForeignKey: NodeInput,
-    related.ManyToManyField: ListInput[NodeInput],
-    related.OneToOneField: NodeInput,
-    reverse_related.ManyToManyRel: ListInput[NodeInput],
-    reverse_related.ManyToOneRel: ListInput[NodeInput],
-    reverse_related.OneToOneRel: NodeInput,
-}
+    input_field_type_map.update(
+        {
+            geos_fields.GeometryField: GeometryFilterLookup,
+        },
+    )
 
 
 def _resolve_array_field_type(model_field: Field):

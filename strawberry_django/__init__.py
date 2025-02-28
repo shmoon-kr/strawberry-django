@@ -1,3 +1,5 @@
+from django.core.exceptions import ImproperlyConfigured
+
 from . import auth, filters, mutations, ordering, pagination, relay
 from .fields.field import connection, field, node, offset_paginated
 from .fields.filter_order import filter_field, order_field
@@ -71,3 +73,9 @@ __all__ = [
     "relay",
     "type",
 ]
+
+try:
+    from fields.filter_types import GeometryFilterLookup
+    __all__.append("GeometryFilterLookup")
+except ImproperlyConfigured:
+    pass
